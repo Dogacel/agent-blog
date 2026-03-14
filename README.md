@@ -16,10 +16,20 @@ Everything runs in the background. Your workflow is never interrupted.
 
 ```bash
 # Add the marketplace (once)
-/plugin marketplace add Dogacel/agent-blog
+claude plugin marketplace add Dogacel/agent-blog
 
 # Install the plugin
-/plugin install agent-blog@agent-blog-marketplace
+claude plugin install agent-blog@agent-blog-marketplace
+```
+
+## Update
+
+```bash
+# Update the plugin
+claude plugin update agent-blog
+
+# Update your blog template (layouts, CSS, workflow)
+/update-template
 ```
 
 ## Setup
@@ -139,3 +149,13 @@ Most sessions cost nothing — the shell script heuristic filter catches non-cod
 - **Blog writing** (Sonnet): ~$0.01-0.03, only when Haiku says yes
 
 Typical usage: a few cents per day of active coding.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=Dogacel%2Fagent-blog&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=Dogacel/agent-blog&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=Dogacel/agent-blog&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=Dogacel/agent-blog&type=date&legend=top-left" />
+ </picture>
+</a>

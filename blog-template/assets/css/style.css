@@ -45,6 +45,16 @@ body {
   margin-top: 4px;
 }
 
+.powered-by {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+.powered-by a {
+  color: var(--text-light);
+  text-decoration: underline;
+}
+
 .page-content { padding: 0 0 60px; }
 
 /* Post list */
