@@ -32,6 +32,17 @@ grep -q '"Write"\|"Edit"' "$TRANSCRIPT_PATH" 2>/dev/null || exit 0
 mkdir -p "$LOG_DIR"
 LOG_ID="${SESSION_ID:-$(date +%s)}"
 
+# Debounce: skip if transcript hasn't grown significantly since last eval.
+# Store last evaluated size per session. Require at least 20% growth to re-evaluate.
+DEBOUNCE_FILE="$LOG_DIR/.debounce_${LOG_ID}"
+LAST_SIZE=0
+[ -f "$DEBOUNCE_FILE" ] && LAST_SIZE=$(cat "$DEBOUNCE_FILE")
+GROWTH_THRESHOLD=$(( LAST_SIZE + LAST_SIZE / 5 ))  # 20% growth minimum
+if [ "$TSIZE" -le "$GROWTH_THRESHOLD" ] && [ "$LAST_SIZE" -gt 0 ]; then
+  exit 0
+fi
+echo "$TSIZE" > "$DEBOUNCE_FILE"
+
 # --- Two-phase evaluation ---
 # Phase 1: Condense transcript and triage with Haiku (cheap + fast)
 # Phase 2: If blog-worthy, write with Sonnet using MCP tools
