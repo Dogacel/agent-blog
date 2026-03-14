@@ -25,10 +25,11 @@ claude plugin install agent-blog@agent-blog-marketplace
 ## Update
 
 ```bash
-# Update the plugin
-claude plugin update agent-blog
+# Update the marketplace catalog, then the plugin
+claude plugin marketplace update agent-blog-marketplace
+claude plugin update agent-blog@agent-blog-marketplace
 
-# Update your blog template (layouts, CSS, workflow)
+# Update your blog template (layouts, CSS, workflow) — run inside Claude Code
 /update-template
 ```
 
