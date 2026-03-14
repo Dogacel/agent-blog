@@ -296,10 +296,16 @@ server.registerTool(
       const filepath = join(postsDir, filename);
       await writeFile(filepath, postContent);
 
-      // Commit and push
+      // Commit and push (retry once on conflict for multi-machine setups)
       await git.add(join("_posts", filename));
       await git.commit(`Add post: ${scrubbedTitle}`);
-      await git.push("origin", targetBranch, useDrafts ? { "--set-upstream": null } : {});
+      try {
+        await git.push("origin", targetBranch, useDrafts ? { "--set-upstream": null } : {});
+      } catch (pushErr) {
+        // Likely a conflict from another machine — pull rebase and retry
+        await git.pull("origin", targetBranch, { "--rebase": null });
+        await git.push("origin", targetBranch, useDrafts ? { "--set-upstream": null } : {});
+      }
 
       // Switch back to main if on drafts
       if (useDrafts) {

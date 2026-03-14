@@ -43,6 +43,13 @@ if [ "$TSIZE" -le "$GROWTH_THRESHOLD" ] && [ "$LAST_SIZE" -gt 0 ]; then
 fi
 echo "$TSIZE" > "$DEBOUNCE_FILE"
 
+# Lock: prevent concurrent evaluations of the same session
+LOCK_FILE="$LOG_DIR/.lock_${LOG_ID}"
+if ! mkdir "$LOCK_FILE" 2>/dev/null; then
+  # Another evaluation is already running for this session
+  exit 0
+fi
+
 # --- Two-phase evaluation ---
 # Phase 1: Condense transcript and triage with Haiku (cheap + fast)
 # Phase 2: If blog-worthy, write with Sonnet using MCP tools
@@ -53,6 +60,10 @@ PLUGIN_ROOT="$1"
 TRANSCRIPT_PATH="$2"
 LOG_ID="$3"
 LOG_DIR="$4"
+LOCK_FILE="$LOG_DIR/.lock_${LOG_ID}"
+
+# Clean up lock on exit
+trap "rmdir \"$LOCK_FILE\" 2>/dev/null" EXIT
 
 # Phase 1: Condense transcript
 SUMMARY=$(node "$PLUGIN_ROOT/lib/condense-transcript.mjs" "$TRANSCRIPT_PATH" 2>/dev/null)
