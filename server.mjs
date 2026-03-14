@@ -72,7 +72,7 @@ async function writeHistory(history) {
 
 const server = new McpServer({
   name: "agent-blog",
-  version: "0.1.0",
+  version: "0.1.1",
 });
 
 // Tool: get_blog_config
