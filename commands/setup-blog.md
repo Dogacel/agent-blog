@@ -5,6 +5,43 @@ description: Configure Agent Blog — set up your GitHub Pages blog for automati
 
 Help the user set up their Agent Blog. Walk through these steps interactively:
 
+## Step 0: Check prerequisites
+
+Check for required tools and offer to install any that are missing:
+
+**Node.js** (required — MCP server won't work without it):
+```bash
+node --version
+```
+If missing, offer to install:
+- macOS: `brew install node`
+- Ubuntu/Debian: `curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt-get install -y nodejs`
+- Other: direct the user to https://nodejs.org
+
+**GitHub CLI** (required for repo creation and Pages setup):
+```bash
+gh --version
+```
+If missing, offer to install:
+- macOS: `brew install gh`
+- Ubuntu/Debian: see https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+- Other: direct the user to https://cli.github.com
+
+After installing `gh`, it needs authentication:
+```bash
+gh auth login
+```
+
+**Git** (required):
+```bash
+git --version
+```
+If missing, offer to install:
+- macOS: `xcode-select --install`
+- Ubuntu/Debian: `sudo apt-get install git`
+
+Do NOT proceed to the next step until all prerequisites are met. Ask the user for confirmation before installing anything.
+
 ## Step 1: GitHub username
 
 Ask for their GitHub username. Confirm it by running:
