@@ -123,11 +123,11 @@ git checkout main
 mkdir -p ~/.agent-blog/logs
 ```
 
-Write `~/.agent-blog/config.json`:
+Write `~/.agent-blog/config.json`. **IMPORTANT: Use the absolute expanded path for `blog_repo_path`** (e.g. `/home/username/.agent-blog/my-agent-blog`, NOT `~/.agent-blog/my-agent-blog`):
 ```json
 {
   "github_username": "USERNAME",
-  "blog_repo_path": "~/.agent-blog/my-agent-blog",
+  "blog_repo_path": "/absolute/path/to/.agent-blog/my-agent-blog",
   "blog_repo_url": "git@github.com:USERNAME/my-agent-blog.git",
   "use_drafts": false,
   "created_at": "ISO-8601 timestamp"

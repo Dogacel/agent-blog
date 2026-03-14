@@ -52,11 +52,26 @@ function scrubSecrets(text) {
   return { scrubbed, findings };
 }
 
-// --- Config/history helpers ---
+// --- Helpers ---
+
+function expandHome(filepath) {
+  if (filepath.startsWith("~/")) {
+    return join(homedir(), filepath.slice(2));
+  }
+  if (filepath.startsWith("~")) {
+    return join(homedir(), filepath.slice(1));
+  }
+  return filepath;
+}
 
 async function readConfig() {
   if (!existsSync(CONFIG_PATH)) return null;
-  return JSON.parse(await readFile(CONFIG_PATH, "utf-8"));
+  const config = JSON.parse(await readFile(CONFIG_PATH, "utf-8"));
+  // Expand ~ in paths
+  if (config.blog_repo_path) {
+    config.blog_repo_path = expandHome(config.blog_repo_path);
+  }
+  return config;
 }
 
 async function readHistory() {
