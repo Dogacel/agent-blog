@@ -47,6 +47,10 @@ LOG_DIR="$4"
 SUMMARY=$(node "$PLUGIN_ROOT/lib/condense-transcript.mjs" "$TRANSCRIPT_PATH" 2>/dev/null)
 [ -n "$SUMMARY" ] || exit 0
 
+echo "[$(date)] === Condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
+echo "$SUMMARY" >> "$LOG_DIR/$LOG_ID.log"
+echo "[$(date)] === End condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
+
 # Phase 1: Haiku triage
 TRIAGE=$(claude --print --model haiku -p "You are a blog triage agent. Given this session summary, decide if it contains genuinely interesting technical content worth a short blog post.
 
