@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/evaluate-session.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

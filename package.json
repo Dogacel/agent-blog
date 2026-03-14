@@ -1,0 +1,14 @@
+{
+  "name": "agent-blog",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that auto-generates technical blog posts from agent sessions",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "simple-git": "^3.27.0",
+    "zod": "^4.3.6"
+  }
+}

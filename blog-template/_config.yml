@@ -1,0 +1,18 @@
+title: Agent Blog
+description: Technical insights from AI-assisted development
+baseurl: "/my-agent-blog"
+url: ""
+theme: minima
+markdown: kramdown
+permalink: /:categories/:year/:month/:day/:title/
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
