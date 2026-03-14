@@ -15,7 +15,11 @@ Everything runs in the background. Your workflow is never interrupted.
 ## Install
 
 ```bash
-claude plugin install Dogacel/agent-blog
+# Add the marketplace (once)
+/plugin marketplace add Dogacel/agent-blog
+
+# Install the plugin
+/plugin install agent-blog@agent-blog-marketplace
 ```
 
 ## Setup

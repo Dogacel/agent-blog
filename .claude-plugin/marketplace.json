@@ -1,0 +1,13 @@
+{
+  "name": "agent-blog-marketplace",
+  "owner": {
+    "name": "Dogacel"
+  },
+  "plugins": [
+    {
+      "name": "agent-blog",
+      "source": "./",
+      "description": "Claude Code plugin that automatically writes technical blog posts from your coding sessions"
+    }
+  ]
+}
