@@ -16,6 +16,7 @@ Update the user's blog template to the latest version bundled with the plugin. T
    - `index.html`
    - `assets/css/style.css`
    - `.github/workflows/deploy.yml`
+   - `.github/workflows/notify-hub.yml`
    - `Gemfile`
    - `.gitignore`
 

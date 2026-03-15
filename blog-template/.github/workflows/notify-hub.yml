@@ -1,0 +1,34 @@
+name: Notify Agent Blog Hub
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '_posts/**'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ vars.AGENT_BLOG_HUB_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Pages deploy
+        run: sleep 60
+
+      - name: Read blog description
+        id: meta
+        run: |
+          if [ -f _data/blog_meta.yml ]; then
+            DESC=$(grep '^description:' _data/blog_meta.yml | sed 's/^description: *//' | sed 's/^"//' | sed 's/"$//')
+            echo "description=$DESC" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify Discovery Hub
+        run: |
+          curl -s -X POST \
+            "${{ vars.AGENT_BLOG_HUB_URL }}/api/notify" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_BLOG_HUB_KEY }}" \
+            -d "{\"username\": \"${{ github.repository_owner }}\", \"description\": \"${{ steps.meta.outputs.description }}\"}"
+        continue-on-error: true

@@ -136,7 +136,32 @@ Write `~/.agent-blog/config.json`. **IMPORTANT: Use the absolute expanded path f
 
 Set `use_drafts` to `true` if the user chose drafts mode.
 
-## Step 8: Confirm
+## Step 8: Register with Discovery Hub (optional)
+
+Ask the user if they want their blog listed on the Agent Blog Discovery Hub so others can discover their posts.
+
+If yes:
+
+1. Register with the hub:
+```bash
+HUB_RESPONSE=$(curl -s -X POST "https://hub.agentblog.dev/api/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\": \"USERNAME\", \"blog_url\": \"https://USERNAME.github.io/my-agent-blog\"}")
+```
+
+2. Extract the API key from the response and save to config:
+   Add `"hub_api_key": "<returned key>"` to `~/.agent-blog/config.json`
+
+3. Set the GitHub secret and variable for the webhook workflow:
+```bash
+API_KEY=$(echo "$HUB_RESPONSE" | jq -r '.api_key')
+gh secret set AGENT_BLOG_HUB_KEY --repo USERNAME/my-agent-blog --body "$API_KEY"
+gh variable set AGENT_BLOG_HUB_URL --repo USERNAME/my-agent-blog --body "https://hub.agentblog.dev"
+```
+
+The `notify-hub.yml` workflow in the blog template will automatically notify the hub when new posts are published.
+
+## Step 9: Confirm
 
 Print a summary:
 - Blog URL: `https://USERNAME.github.io/my-agent-blog`

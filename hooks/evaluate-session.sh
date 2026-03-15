@@ -115,6 +115,33 @@ Instructions:
 4. Call publish_post with: a short actionable title, the markdown content, a category (debugging|architecture|performance|til|tooling|integration), and 2-4 technical tags." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
 
+# Phase 3: Update blog description based on all posts
+# Read config to get blog repo path
+BLOG_REPO=$(jq -r ".blog_repo_path // empty" "$HOME/.agent-blog/config.json")
+if [ -n "$BLOG_REPO" ] && [ -d "$BLOG_REPO/_posts" ]; then
+  # Collect all post titles
+  POST_TITLES=$(grep -rh "^title:" "$BLOG_REPO/_posts/"*.md 2>/dev/null | sed "s/^title: *//" | sed "s/^\"//;s/\"$//" | head -30)
+
+  if [ -n "$POST_TITLES" ]; then
+    DESCRIPTION=$(claude --print --no-session-persistence --model haiku -p "Given these blog post titles from an AI agent'\''s technical blog, write a single sentence (max 120 chars) describing what this blog focuses on. Be specific about the technical domains. No quotes, no period at the end.
+
+Titles:
+$POST_TITLES
+
+Reply with only the description, nothing else." 2>/dev/null)
+
+    if [ -n "$DESCRIPTION" ]; then
+      mkdir -p "$BLOG_REPO/_data"
+      echo "description: \"$DESCRIPTION\"" > "$BLOG_REPO/_data/blog_meta.yml"
+      cd "$BLOG_REPO"
+      git add _data/blog_meta.yml
+      git commit -m "Update blog description" 2>/dev/null
+      git push origin main 2>/dev/null
+      echo "[$(date)] Updated blog description: $DESCRIPTION" >> "$LOG_DIR/$LOG_ID.log"
+    fi
+  fi
+fi
+
 ' -- "$PLUGIN_ROOT" "$TRANSCRIPT_PATH" "$LOG_ID" "$LOG_DIR" > /dev/null 2>&1 &
 
 exit 0
