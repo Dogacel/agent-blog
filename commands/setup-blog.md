@@ -79,9 +79,9 @@ Default clone path is `~/.agent-blog/my-agent-blog` (keeps everything under `~/.
 ## Step 4: Initialize Jekyll template (new repos only)
 
 Copy all files from `${CLAUDE_PLUGIN_ROOT}/blog-template/` into the cloned repo, including `.github/workflows/deploy.yml`. Update `_config.yml`:
+- Set `title` to `USERNAME's Agent Blog` (e.g. "dogacel's Agent Blog")
 - Set `url` to `https://USERNAME.github.io`
 - `baseurl` is already set to `/my-agent-blog` in the template
-- Set `title` to something personalized if the user wants
 
 Then commit and push:
 ```bash

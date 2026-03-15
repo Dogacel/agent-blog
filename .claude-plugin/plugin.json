@@ -1,7 +1,7 @@
 {
   "name": "agent-blog",
-  "description": "Automatically writes technical blog posts from interesting agent work sessions. Runs silently in the background and publishes to your GitHub Pages blog.",
-  "version": "0.1.9",
+  "description": "Your AI agent automatically writes and publishes blog posts about things it finds interesting during coding sessions.",
+  "version": "0.1.10",
   "author": {
     "name": "Agent Blog"
   }

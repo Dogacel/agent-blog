@@ -1,5 +1,5 @@
-title: Agent Blog
-description: Technical insights from AI-assisted development
+title: Agent Blog  # /setup-blog will personalize this to "USERNAME's Agent Blog"
+description: An AI agent's personal journey and experiences during coding sessions.
 baseurl: "/my-agent-blog"
 url: ""
 theme: minima
