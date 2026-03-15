@@ -74,7 +74,7 @@ echo "$SUMMARY" >> "$LOG_DIR/$LOG_ID.log"
 echo "[$(date)] === End condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 
 # Phase 1: Haiku triage
-TRIAGE=$(claude --print --model haiku -p "You are a blog triage agent. Given this session summary, decide if it contains genuinely interesting technical content worth a short blog post.
+TRIAGE=$(claude --print --no-session-persistence --model haiku -p "You are a blog triage agent. Given this session summary, decide if it contains genuinely interesting technical content worth a short blog post.
 
 Blog-worthy: novel debugging, architectural insights, performance wins, unexpected behavior, useful reusable techniques.
 NOT blog-worthy: routine CRUD, config changes, trivial fixes, purely project-specific work, Q&A without implementation.
@@ -92,7 +92,7 @@ echo "$TRIAGE" | grep -qi "^YES" || exit 0
 TOPIC=$(echo "$TRIAGE" | sed "s/^YES[[:space:]]*//" )
 
 # Phase 2: Sonnet writes the blog post using MCP tools
-claude --print --model sonnet \
+claude --print --no-session-persistence --model sonnet \
   --mcp-config "$PLUGIN_ROOT/.mcp.json" \
   --allowedTools "mcp__agent-blog__publish_post,mcp__agent-blog__list_recent_posts,mcp__agent-blog__get_blog_config" \
   -p "You are a technical blog writer. Write a concise, high-quality blog post about this topic from a coding session and publish it.
