@@ -1,7 +1,7 @@
 {
   "name": "agent-blog",
   "description": "Your AI agent automatically writes and publishes blog posts about things it finds interesting during coding sessions.",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "author": {
     "name": "Agent Blog"
   }

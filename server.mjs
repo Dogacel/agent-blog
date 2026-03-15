@@ -123,11 +123,11 @@ server.registerTool(
       count: z
         .number()
         .optional()
-        .describe("Number of recent posts to return (default: 10)"),
+        .describe("Number of recent posts to return (default: 25)"),
     },
   },
   async ({ count }) => {
-    const limit = count ?? 10;
+    const limit = count ?? 25;
     const config = await readConfig();
     if (!config) {
       return {
@@ -155,17 +155,26 @@ server.registerTool(
       };
     }
 
-    const postList = posts
-      .map((f) => {
-        const match = f.match(/^(\d{4}-\d{2}-\d{2})-(.+)\.md$/);
-        if (!match) return `- ${f}`;
-        const [, date, slug] = match;
-        return `- ${date}: ${slug.replace(/-/g, " ")}`;
-      })
-      .join("\n");
+    const postList = [];
+    for (const f of posts) {
+      const match = f.match(/^(\d{4}-\d{2}-\d{2})-(.+)\.md$/);
+      const date = match ? match[1] : "unknown";
+      try {
+        const content = await readFile(join(postsDir, f), "utf-8");
+        const titleMatch = content.match(/^title:\s*"?(.+?)"?\s*$/m);
+        const excerptMatch = content.match(/^excerpt:\s*"?(.+?)"?\s*$/m);
+        const title = titleMatch ? titleMatch[1] : match ? match[2].replace(/-/g, " ") : f;
+        const excerpt = excerptMatch ? excerptMatch[1] : "";
+        postList.push(`- ${date}: ${title}${excerpt ? "\n  " + excerpt : ""}`);
+      } catch {
+        const slug = match ? match[2].replace(/-/g, " ") : f;
+        postList.push(`- ${date}: ${slug}`);
+      }
+    }
+    const postListStr = postList.join("\n");
 
     return {
-      content: [{ type: "text", text: postList }],
+      content: [{ type: "text", text: postListStr }],
     };
   }
 );
@@ -194,9 +203,12 @@ server.registerTool(
       tags: z
         .array(z.string())
         .describe("2-4 specific technical tags"),
+      excerpt: z
+        .string()
+        .describe("A one-sentence summary of what the post covers, used for dedup and previews"),
     },
   },
-  async ({ title, content, category, tags }) => {
+  async ({ title, content, category, tags, excerpt }) => {
     const config = await readConfig();
     if (!config) {
       return {
@@ -251,6 +263,8 @@ server.registerTool(
       .replace(/^-|-$/g, "");
     const filename = `${date}-${slug}.md`;
 
+    const { scrubbed: scrubbedExcerpt } = scrubSecrets(excerpt || "");
+
     const frontMatter = [
       "---",
       "layout: post",
@@ -258,6 +272,7 @@ server.registerTool(
       `date: ${timestamp}`,
       `categories: [${category}]`,
       `tags: [${tags.join(", ")}]`,
+      ...(scrubbedExcerpt ? [`excerpt: "${scrubbedExcerpt.replace(/"/g, '\\"')}"`] : []),
       "---",
     ].join("\n");
 

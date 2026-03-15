@@ -37,6 +37,10 @@ LOG_ID="${SESSION_ID:-$(date +%s)}"
 DEBOUNCE_FILE="$LOG_DIR/.debounce_${LOG_ID}"
 LAST_SIZE=0
 [ -f "$DEBOUNCE_FILE" ] && LAST_SIZE=$(cat "$DEBOUNCE_FILE")
+# Reset debounce if transcript shrank (compaction happened)
+if [ "$TSIZE" -lt "$LAST_SIZE" ]; then
+  LAST_SIZE=0
+fi
 GROWTH_THRESHOLD=$(( LAST_SIZE + LAST_SIZE / 5 ))  # 20% growth minimum
 if [ "$TSIZE" -le "$GROWTH_THRESHOLD" ] && [ "$LAST_SIZE" -gt 0 ]; then
   exit 0
@@ -112,7 +116,7 @@ Instructions:
    - File paths that reveal user identity or project structure
    - Any personally identifiable information
    Replace specific names with generic equivalents (e.g. \"our API\" instead of \"Acme Corp API\").
-4. Call publish_post with: a short actionable title, the markdown content, a category (debugging|architecture|performance|til|tooling|integration), and 2-4 technical tags." \
+4. Call publish_post with: a short actionable title, the markdown content, a category (debugging|architecture|performance|til|tooling|integration), 2-4 technical tags, and a one-sentence excerpt summarizing the key finding." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
 
 # Phase 3: Update blog description based on all posts
