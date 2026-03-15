@@ -165,10 +165,11 @@ server.registerTool(
         const excerptMatch = content.match(/^excerpt:\s*"?(.+?)"?\s*$/m);
         const title = titleMatch ? titleMatch[1] : match ? match[2].replace(/-/g, " ") : f;
         const excerpt = excerptMatch ? excerptMatch[1] : "";
-        postList.push(`- ${date}: ${title}${excerpt ? "\n  " + excerpt : ""}`);
+        const pinned = /^pinned:\s*true/m.test(content) ? " [PINNED]" : "";
+        postList.push(`- ${date}: ${title}${pinned} (${f})${excerpt ? "\n  " + excerpt : ""}`);
       } catch {
         const slug = match ? match[2].replace(/-/g, " ") : f;
-        postList.push(`- ${date}: ${slug}`);
+        postList.push(`- ${date}: ${slug} (${f})`);
       }
     }
     const postListStr = postList.join("\n");
@@ -397,6 +398,117 @@ server.registerTool(
         {
           type: "text",
           text: `Published: "${scrubbedTitle}"\nFile: _posts/${filename}\nURL: ${blogUrl}${warnings}`,
+        },
+      ],
+    };
+  }
+);
+
+// Tool: pin_post
+server.registerTool(
+  "pin_post",
+  {
+    description:
+      "Pin or unpin a blog post. Pinned posts appear at the top of the blog index. Only one post can be pinned at a time — pinning a new post unpins the previous one.",
+    inputSchema: {
+      filename: z
+        .string()
+        .describe(
+          "The post filename (e.g. 2026-03-15-my-post.md). Use list_recent_posts to find filenames."
+        ),
+      pin: z
+        .boolean()
+        .optional()
+        .describe("True to pin (default), false to unpin"),
+    },
+  },
+  async ({ filename, pin }) => {
+    const shouldPin = pin !== false;
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Agent Blog not configured. Run /setup-blog first.",
+          },
+        ],
+      };
+    }
+
+    const repoPath = config.blog_repo_path;
+    const postsDir = join(repoPath, "_posts");
+    const filePath = join(postsDir, filename);
+
+    if (!existsSync(filePath)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Post not found: ${filename}`,
+          },
+        ],
+      };
+    }
+
+    const git = simpleGit(repoPath);
+    const filesToAdd = [];
+
+    // If pinning, first unpin any currently pinned post
+    if (shouldPin) {
+      const files = await readdir(postsDir);
+      for (const f of files) {
+        if (!f.endsWith(".md") || f === filename) continue;
+        const fp = join(postsDir, f);
+        const content = await readFile(fp, "utf-8");
+        if (/^pinned:\s*true/m.test(content)) {
+          const updated = content.replace(/^pinned:\s*true\n/m, "");
+          await writeFile(fp, updated);
+          filesToAdd.push(join("_posts", f));
+        }
+      }
+    }
+
+    // Update the target post
+    let content = await readFile(filePath, "utf-8");
+    if (shouldPin) {
+      if (/^pinned:/m.test(content)) {
+        content = content.replace(/^pinned:.*$/m, "pinned: true");
+      } else {
+        // Add pinned: true after the opening ---
+        content = content.replace(/^---\n/, "---\npinned: true\n");
+      }
+    } else {
+      content = content.replace(/^pinned:\s*true\n/m, "");
+    }
+    await writeFile(filePath, content);
+    filesToAdd.push(join("_posts", filename));
+
+    try {
+      await git.checkout("main");
+      await git.add(filesToAdd);
+      const action = shouldPin ? "Pin" : "Unpin";
+      const titleMatch = content.match(/^title:\s*"?(.+?)"?\s*$/m);
+      const title = titleMatch ? titleMatch[1] : filename;
+      await git.commit(`${action} post: ${title}`);
+      await git.push("origin", "main");
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error during git operations: ${err.message}`,
+          },
+        ],
+      };
+    }
+
+    const action = shouldPin ? "Pinned" : "Unpinned";
+    return {
+      content: [
+        {
+          type: "text",
+          text: `${action}: ${filename}`,
         },
       ],
     };

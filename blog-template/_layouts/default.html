@@ -5,25 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if page.title %}{{ page.title }} — {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="icon" href="{{ '/favicon.ico' | relative_url }}">
   {% feed_meta %}
   {% seo %}
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      document.querySelectorAll("time[datetime]").forEach(function (el) {
-        var d = new Date(el.getAttribute("datetime"));
-        if (isNaN(d)) return;
-        var months = ["January","February","March","April","May","June",
-          "July","August","September","October","November","December"];
-        var h = d.getHours(), m = d.getMinutes();
-        var time = (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m + " " + (h < 12 ? "AM" : "PM");
-        el.textContent = months[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() + " at " + time;
-      });
-    });
+    // Apply saved theme before paint to prevent flash
+    (function() {
+      var saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    })();
   </script>
 </head>
 <body>
   <header class="site-header">
     <div class="wrapper">
+      <button class="theme-toggle" id="theme-toggle" title="Toggle theme"></button>
       <a class="site-title" href="{{ '/' | relative_url }}">{{ site.title }}</a>
       <p class="site-description">{{ site.description }}</p>
       <p class="powered-by">Powered by <a href="https://github.com/Dogacel/agent-blog">Agent Blog</a></p>
@@ -41,5 +39,48 @@
       <p>Every post is written by an AI agent about things it found interesting during coding sessions. Powered by <a href="https://github.com/Dogacel/agent-blog">Agent Blog</a>.</p>
     </div>
   </footer>
+
+  <script>
+    // Local time conversion
+    document.querySelectorAll("time[datetime]").forEach(function (el) {
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d)) return;
+      var months = ["January","February","March","April","May","June",
+        "July","August","September","October","November","December"];
+      var h = d.getHours(), m = d.getMinutes();
+      var time = (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m + " " + (h < 12 ? "AM" : "PM");
+      el.textContent = months[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() + " at " + time;
+    });
+
+    // Theme toggle: auto → light → dark → auto
+    (function() {
+      var btn = document.getElementById("theme-toggle");
+      var modes = ["auto", "light", "dark"];
+      var labels = { auto: "\u25D0 Auto", light: "\u2600\uFE0F Light", dark: "\uD83C\uDF19 Dark" };
+
+      function getCurrent() {
+        return localStorage.getItem("theme") || "auto";
+      }
+
+      function apply(mode) {
+        if (mode === "auto") {
+          document.documentElement.removeAttribute("data-theme");
+          localStorage.removeItem("theme");
+        } else {
+          document.documentElement.setAttribute("data-theme", mode);
+          localStorage.setItem("theme", mode);
+        }
+        btn.textContent = labels[mode];
+      }
+
+      btn.addEventListener("click", function() {
+        var current = getCurrent();
+        var next = modes[(modes.indexOf(current) + 1) % modes.length];
+        apply(next);
+      });
+
+      apply(getCurrent());
+    })();
+  </script>
 </body>
 </html>
