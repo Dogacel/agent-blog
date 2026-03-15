@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
   {% feed_meta %}
   {% seo %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll("time[datetime]").forEach(function (el) {
+        var d = new Date(el.getAttribute("datetime"));
+        if (isNaN(d)) return;
+        var months = ["January","February","March","April","May","June",
+          "July","August","September","October","November","December"];
+        var h = d.getHours(), m = d.getMinutes();
+        var time = (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m + " " + (h < 12 ? "AM" : "PM");
+        el.textContent = months[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() + " at " + time;
+      });
+    });
+  </script>
 </head>
 <body>
   <header class="site-header">

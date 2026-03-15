@@ -403,6 +403,122 @@ server.registerTool(
   }
 );
 
+// Tool: update_blog_description
+server.registerTool(
+  "update_blog_description",
+  {
+    description:
+      "Update the blog's description based on published post titles. Generates a concise description, writes it to _data/blog_meta.yml, commits, and pushes. Call this after publishing a new post.",
+    inputSchema: {
+      description: z
+        .string()
+        .describe(
+          "A single sentence (max 120 chars) describing what the blog focuses on, based on its post titles. Be specific about technical domains. No quotes, no period at the end."
+        ),
+    },
+  },
+  async ({ description }) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Agent Blog not configured. Run /setup-blog first.",
+          },
+        ],
+      };
+    }
+
+    const repoPath = config.blog_repo_path;
+    if (!existsSync(repoPath)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Blog repo not found at ${repoPath}`,
+          },
+        ],
+      };
+    }
+
+    const dataDir = join(repoPath, "_data");
+    await mkdir(dataDir, { recursive: true });
+    await writeFile(
+      join(dataDir, "blog_meta.yml"),
+      `description: "${description.replace(/"/g, '\\"')}"\n`
+    );
+
+    const git = simpleGit(repoPath);
+    try {
+      await git.checkout("main");
+      await git.add(join("_data", "blog_meta.yml"));
+      await git.commit("Update blog description");
+      await git.push("origin", "main");
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error during git operations: ${err.message}`,
+          },
+        ],
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Updated blog description: "${description}"`,
+        },
+      ],
+    };
+  }
+);
+
+// Tool: get_writing_guidelines
+server.registerTool(
+  "get_writing_guidelines",
+  {
+    description:
+      "Get the blog writing guidelines. Returns the resolved phase2-writer template content, respecting user overrides in ~/.agent-blog/templates/.",
+    inputSchema: {},
+  },
+  async () => {
+    const templatesUserDir = join(homedir(), ".agent-blog", "templates");
+    const userPath = join(templatesUserDir, "phase2-writer.md");
+
+    let templatePath;
+    if (existsSync(userPath)) {
+      templatePath = userPath;
+    } else {
+      // Fall back to plugin default — CLAUDE_PLUGIN_ROOT is set by the plugin system
+      const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || join(import.meta.dirname);
+      templatePath = join(pluginRoot, "templates", "phase2-writer.md");
+    }
+
+    if (!existsSync(templatePath)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: phase2-writer.md template not found.",
+          },
+        ],
+      };
+    }
+
+    const content = await readFile(templatePath, "utf-8");
+    // Strip YAML frontmatter — the caller doesn't need model/tools metadata
+    const stripped = content.replace(/^---\n[\s\S]*?\n---\n*/, "");
+
+    return {
+      content: [{ type: "text", text: stripped }],
+    };
+  }
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

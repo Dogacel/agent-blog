@@ -22,9 +22,17 @@ LOG_DIR="$HOME/.agent-blog/logs"
 [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ] || exit 0
 [ -n "$PLUGIN_ROOT" ] || exit 0
 
-# Heuristic: skip short sessions (< 5KB transcript)
+# Read configurable thresholds from config (with defaults)
+GROWTH_THRESHOLD_PCT=$(jq -r '.growth_threshold // 0.2' "$CONFIG_FILE")
+MAX_TOKENS=$(jq -r '.max_tokens_between_checks // 200000' "$CONFIG_FILE")
+MIN_TRANSCRIPT=$(jq -r '.min_transcript_bytes // 5000' "$CONFIG_FILE")
+
+# Check if this project is ignored
+node "$PLUGIN_ROOT/lib/check-ignore.mjs" "$PWD" || exit 0
+
+# Heuristic: skip short sessions
 TSIZE=$(stat -f%z "$TRANSCRIPT_PATH" 2>/dev/null || stat -c%s "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
-[ "$TSIZE" -gt 5000 ] || exit 0
+[ "$TSIZE" -gt "$MIN_TRANSCRIPT" ] || exit 0
 
 # Heuristic: must have code edits
 grep -q '"Write"\|"Edit"' "$TRANSCRIPT_PATH" 2>/dev/null || exit 0
@@ -33,7 +41,6 @@ mkdir -p "$LOG_DIR"
 LOG_ID="${SESSION_ID:-$(date +%s)}"
 
 # Debounce: skip if transcript hasn't grown significantly since last eval.
-# Store last evaluated size per session. Require at least 20% growth to re-evaluate.
 DEBOUNCE_FILE="$LOG_DIR/.debounce_${LOG_ID}"
 LAST_SIZE=0
 [ -f "$DEBOUNCE_FILE" ] && LAST_SIZE=$(cat "$DEBOUNCE_FILE")
@@ -41,8 +48,12 @@ LAST_SIZE=0
 if [ "$TSIZE" -lt "$LAST_SIZE" ]; then
   LAST_SIZE=0
 fi
-GROWTH_THRESHOLD=$(( LAST_SIZE + LAST_SIZE / 5 ))  # 20% growth minimum
-if [ "$TSIZE" -le "$GROWTH_THRESHOLD" ] && [ "$LAST_SIZE" -gt 0 ]; then
+# Trigger if EITHER: transcript grew by growth_threshold %, OR absolute growth exceeds max_tokens * 4 bytes
+GROWTH_NEEDED=$(awk "BEGIN {printf \"%d\", $LAST_SIZE * $GROWTH_THRESHOLD_PCT}")
+GROWTH_MIN=$(( LAST_SIZE + GROWTH_NEEDED ))
+ABS_CAP_BYTES=$(( MAX_TOKENS * 4 ))
+GROWTH_SINCE=$(( TSIZE - LAST_SIZE ))
+if [ "$TSIZE" -le "$GROWTH_MIN" ] && [ "$GROWTH_SINCE" -lt "$ABS_CAP_BYTES" ] && [ "$LAST_SIZE" -gt 0 ]; then
   exit 0
 fi
 echo "$TSIZE" > "$DEBOUNCE_FILE"
@@ -54,11 +65,12 @@ if ! mkdir "$LOCK_FILE" 2>/dev/null; then
   exit 0
 fi
 
-# --- Two-phase evaluation ---
+# --- Three-phase evaluation ---
 # Phase 1: Condense transcript and triage with Haiku (cheap + fast)
 # Phase 2: If blog-worthy, write with Sonnet using MCP tools
+# Phase 3: Update blog description
 
-# Run both phases in background so the hook returns immediately
+# Run all phases in background so the hook returns immediately
 nohup bash -c '
 PLUGIN_ROOT="$1"
 TRANSCRIPT_PATH="$2"
@@ -77,16 +89,12 @@ echo "[$(date)] === Condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 echo "$SUMMARY" >> "$LOG_DIR/$LOG_ID.log"
 echo "[$(date)] === End condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 
-# Phase 1: Haiku triage
-TRIAGE=$(claude --print --no-session-persistence --model haiku -p "You are a blog triage agent. Given this session summary, decide if it contains genuinely interesting technical content worth a short blog post.
-
-Blog-worthy: novel debugging, architectural insights, performance wins, unexpected behavior, useful reusable techniques.
-NOT blog-worthy: routine CRUD, config changes, trivial fixes, purely project-specific work, Q&A without implementation.
-
-Session summary:
-$SUMMARY
-
-Reply with exactly one line: YES <topic> or NO <reason>" 2>/dev/null)
+# Phase 1: Haiku triage via agent file
+AGENT_FILE=$(SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase1-triage 2>/dev/null)
+[ -n "$AGENT_FILE" ] || exit 0
+TRIAGE=$(claude --agent "$AGENT_FILE" --print --no-session-persistence 2>/dev/null)
+rm -f "$AGENT_FILE"
+rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
 echo "[$(date)] Triage result: $TRIAGE" >> "$LOG_DIR/$LOG_ID.log"
 
@@ -95,53 +103,36 @@ echo "$TRIAGE" | grep -qi "^YES" || exit 0
 
 TOPIC=$(echo "$TRIAGE" | sed "s/^YES[[:space:]]*//" )
 
-# Phase 2: Sonnet writes the blog post using MCP tools
-claude --print --no-session-persistence --model sonnet \
+# Phase 2: Sonnet writes the blog post via agent file
+AGENT_FILE=$(TOPIC="$TOPIC" SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase2-writer 2>/dev/null)
+[ -n "$AGENT_FILE" ] || exit 0
+claude --agent "$AGENT_FILE" --print --no-session-persistence \
   --mcp-config "$PLUGIN_ROOT/.mcp.json" \
-  --allowedTools "mcp__agent-blog__publish_post,mcp__agent-blog__list_recent_posts,mcp__agent-blog__get_blog_config" \
-  -p "You are a technical blog writer. Write a concise, high-quality blog post about this topic from a coding session and publish it.
-
-Topic: $TOPIC
-
-Session details:
-$SUMMARY
-
-Instructions:
-1. First call list_recent_posts to check for duplicate topics. If a similar post exists, stop.
-2. Write a post (300-800 words): start with the problem, then the investigation, the solution with code snippets, and a one-line takeaway. Use first person plural (\"we\"). Be specific and technical.
-3. SAFETY: You MUST strip ALL of the following from your post:
-   - API keys, tokens, passwords, secrets, credentials
-   - Internal URLs, IP addresses, hostnames
-   - Repository names, organization names, team names
-   - File paths that reveal user identity or project structure
-   - Any personally identifiable information
-   Replace specific names with generic equivalents (e.g. \"our API\" instead of \"Acme Corp API\").
-4. Call publish_post with: a short actionable title, the markdown content, a category (debugging|architecture|performance|til|tooling|integration), 2-4 technical tags, and a one-sentence excerpt summarizing the key finding." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
+rm -f "$AGENT_FILE"
+rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
-# Phase 3: Update blog description based on all posts
-# Read config to get blog repo path
+# Phase 3: Update blog description via MCP tool
 BLOG_REPO=$(jq -r ".blog_repo_path // empty" "$HOME/.agent-blog/config.json")
 if [ -n "$BLOG_REPO" ] && [ -d "$BLOG_REPO/_posts" ]; then
   # Collect all post titles
   POST_TITLES=$(grep -rh "^title:" "$BLOG_REPO/_posts/"*.md 2>/dev/null | sed "s/^title: *//" | sed "s/^\"//;s/\"$//" | head -30)
 
   if [ -n "$POST_TITLES" ]; then
-    DESCRIPTION=$(claude --print --no-session-persistence --model haiku -p "Given these blog post titles from an AI agent'\''s technical blog, write a single sentence (max 120 chars) describing what this blog focuses on. Be specific about the technical domains. No quotes, no period at the end.
+    AGENT_FILE=$(POST_TITLES="$POST_TITLES" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase3-description 2>/dev/null)
+    if [ -n "$AGENT_FILE" ]; then
+      DESCRIPTION=$(claude --agent "$AGENT_FILE" --print --no-session-persistence 2>/dev/null)
+      rm -f "$AGENT_FILE"
+      rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
-Titles:
-$POST_TITLES
-
-Reply with only the description, nothing else." 2>/dev/null)
-
-    if [ -n "$DESCRIPTION" ]; then
-      mkdir -p "$BLOG_REPO/_data"
-      echo "description: \"$DESCRIPTION\"" > "$BLOG_REPO/_data/blog_meta.yml"
-      cd "$BLOG_REPO"
-      git add _data/blog_meta.yml
-      git commit -m "Update blog description" 2>/dev/null
-      git push origin main 2>/dev/null
-      echo "[$(date)] Updated blog description: $DESCRIPTION" >> "$LOG_DIR/$LOG_ID.log"
+      if [ -n "$DESCRIPTION" ]; then
+        # Use MCP tool to write, commit, and push
+        claude --print --no-session-persistence \
+          --mcp-config "$PLUGIN_ROOT/.mcp.json" \
+          --allowedTools "mcp__agent-blog__update_blog_description" \
+          -p "Call update_blog_description with this description: $DESCRIPTION" \
+          >> "$LOG_DIR/$LOG_ID.log" 2>&1
+      fi
     fi
   fi
 fi

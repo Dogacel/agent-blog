@@ -1,5 +1,5 @@
 ---
-name: update-template
+name: update-blog-template
 description: Update your blog's Jekyll template to the latest version from the plugin
 ---
 

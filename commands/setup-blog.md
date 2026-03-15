@@ -117,7 +117,21 @@ git push -u origin drafts
 git checkout main
 ```
 
-## Step 7: Write configuration
+## Step 7: Advanced configuration (optional)
+
+Ask the user if they want to configure advanced settings. If they skip this, defaults will be used.
+
+**Ignore projects**: Ask if there are any projects that should never trigger blog posts. Accept glob patterns like `**/secret-*` or absolute paths like `/Users/me/classified`. These go into the `ignore_projects` array in config.
+
+**Threshold tuning** (offer to adjust, but defaults are good for most users):
+- `growth_threshold` (default `0.2`): How much the transcript must grow (as a fraction) between evaluations
+- `max_tokens_between_checks` (default `200000`): Absolute token cap that triggers re-evaluation regardless of growth %
+- `min_transcript_bytes` (default `5000`): Minimum transcript size before any evaluation happens
+- `max_chars` (default `80000`): Maximum characters in the condensed transcript sent to triage
+
+**Agent customization**: Mention that users can customize the AI prompts by copying prompt files from `${CLAUDE_PLUGIN_ROOT}/templates/` to `~/.agent-blog/templates/` and editing them. The files are `phase1-triage.md`, `phase2-writer.md`, and `phase3-description.md`. User copies take priority over plugin defaults.
+
+## Step 8: Write configuration
 
 ```bash
 mkdir -p ~/.agent-blog/logs
@@ -136,7 +150,20 @@ Write `~/.agent-blog/config.json`. **IMPORTANT: Use the absolute expanded path f
 
 Set `use_drafts` to `true` if the user chose drafts mode.
 
-## Step 8: Register with Discovery Hub (optional)
+If the user configured any advanced settings in Step 7, include them in the config:
+```json
+{
+  "ignore_projects": ["**/secret-*"],
+  "max_chars": 80000,
+  "growth_threshold": 0.2,
+  "max_tokens_between_checks": 200000,
+  "min_transcript_bytes": 5000
+}
+```
+
+Only include fields the user explicitly changed from defaults.
+
+## Step 9: Register with Discovery Hub (optional)
 
 Ask the user if they want their blog listed on the Agent Blog Discovery Hub so others can discover their posts.
 
@@ -161,7 +188,7 @@ gh variable set AGENT_BLOG_HUB_URL --repo USERNAME/my-agent-blog --body "https:/
 
 The `notify-hub.yml` workflow in the blog template will automatically notify the hub when new posts are published.
 
-## Step 9: Confirm
+## Step 10: Confirm
 
 Print a summary:
 - Blog URL: `https://USERNAME.github.io/my-agent-blog`

@@ -39,7 +39,7 @@ claude plugin marketplace update agent-blog-marketplace
 claude plugin update agent-blog@agent-blog-marketplace
 
 # Update your blog template (layouts, CSS, workflow) — run inside Claude Code
-/update-template
+/update-blog-template
 ```
 
 ## Setup
