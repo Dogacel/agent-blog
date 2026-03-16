@@ -89,12 +89,12 @@ echo "[$(date)] === Condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 echo "$SUMMARY" >> "$LOG_DIR/$LOG_ID.log"
 echo "[$(date)] === End condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 
-# Phase 1: Haiku triage via agent file
-AGENT_FILE=$(SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase1-triage 2>/dev/null)
-[ -n "$AGENT_FILE" ] || exit 0
-TRIAGE=$(claude --agent "$AGENT_FILE" --print --no-session-persistence -p "Reply with exactly one line: YES <topic> or NO <reason>" 2>/dev/null)
-rm -f "$AGENT_FILE"
-rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
+# Phase 1: Haiku triage via inline agent
+AGENT_JSON=$(SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase1-triage 2>/dev/null)
+[ -n "$AGENT_JSON" ] || exit 0
+TRIAGE=$(claude --agents "{\"triage\": $AGENT_JSON}" --agent triage \
+  --print --no-session-persistence \
+  -p "Reply with exactly one line: YES <topic> or NO <reason>" 2>/dev/null)
 
 echo "[$(date)] Triage result: $TRIAGE" >> "$LOG_DIR/$LOG_ID.log"
 
@@ -103,15 +103,14 @@ echo "$TRIAGE" | grep -qi "^YES" || exit 0
 
 TOPIC=$(echo "$TRIAGE" | sed "s/^YES[[:space:]]*//" )
 
-# Phase 2: Sonnet writes the blog post via agent file
-AGENT_FILE=$(TOPIC="$TOPIC" SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase2-writer 2>/dev/null)
-[ -n "$AGENT_FILE" ] || exit 0
-claude --agent "$AGENT_FILE" --print --no-session-persistence \
+# Phase 2: Sonnet writes the blog post via inline agent
+AGENT_JSON=$(TOPIC="$TOPIC" SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase2-writer 2>/dev/null)
+[ -n "$AGENT_JSON" ] || exit 0
+claude --agents "{\"writer\": $AGENT_JSON}" --agent writer \
+  --print --no-session-persistence \
   --mcp-config "$PLUGIN_ROOT/.mcp.json" \
   -p "Write and publish a blog post about the topic described in your instructions. Follow the workflow and guidelines exactly." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
-rm -f "$AGENT_FILE"
-rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
 # Phase 3: Update blog description via MCP tool
 BLOG_REPO=$(jq -r ".blog_repo_path // empty" "$HOME/.agent-blog/config.json")
@@ -120,11 +119,11 @@ if [ -n "$BLOG_REPO" ] && [ -d "$BLOG_REPO/_posts" ]; then
   POST_TITLES=$(grep -rh "^title:" "$BLOG_REPO/_posts/"*.md 2>/dev/null | sed "s/^title: *//" | sed "s/^\"//;s/\"$//" | head -30)
 
   if [ -n "$POST_TITLES" ]; then
-    AGENT_FILE=$(POST_TITLES="$POST_TITLES" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase3-description 2>/dev/null)
-    if [ -n "$AGENT_FILE" ]; then
-      DESCRIPTION=$(claude --agent "$AGENT_FILE" --print --no-session-persistence -p "Reply with only the description sentence, nothing else. No quotes, no period." 2>/dev/null)
-      rm -f "$AGENT_FILE"
-      rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
+    AGENT_JSON=$(POST_TITLES="$POST_TITLES" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase3-description 2>/dev/null)
+    if [ -n "$AGENT_JSON" ]; then
+      DESCRIPTION=$(claude --agents "{\"desc\": $AGENT_JSON}" --agent desc \
+        --print --no-session-persistence \
+        -p "Reply with only the description sentence, nothing else. No quotes, no period." 2>/dev/null)
 
       if [ -n "$DESCRIPTION" ]; then
         # Use MCP tool to write, commit, and push
