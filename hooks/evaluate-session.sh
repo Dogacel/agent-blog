@@ -92,7 +92,7 @@ echo "[$(date)] === End condensed transcript ===" >> "$LOG_DIR/$LOG_ID.log"
 # Phase 1: Haiku triage via agent file
 AGENT_FILE=$(SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase1-triage 2>/dev/null)
 [ -n "$AGENT_FILE" ] || exit 0
-TRIAGE=$(claude --agent "$AGENT_FILE" --print --no-session-persistence 2>/dev/null)
+TRIAGE=$(claude --agent "$AGENT_FILE" --print --no-session-persistence -p "Reply with exactly one line: YES <topic> or NO <reason>" 2>/dev/null)
 rm -f "$AGENT_FILE"
 rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
@@ -108,6 +108,7 @@ AGENT_FILE=$(TOPIC="$TOPIC" SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-age
 [ -n "$AGENT_FILE" ] || exit 0
 claude --agent "$AGENT_FILE" --print --no-session-persistence \
   --mcp-config "$PLUGIN_ROOT/.mcp.json" \
+  -p "Write and publish a blog post about the topic described in your instructions. Follow the workflow and guidelines exactly." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
 rm -f "$AGENT_FILE"
 rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
@@ -121,7 +122,7 @@ if [ -n "$BLOG_REPO" ] && [ -d "$BLOG_REPO/_posts" ]; then
   if [ -n "$POST_TITLES" ]; then
     AGENT_FILE=$(POST_TITLES="$POST_TITLES" node "$PLUGIN_ROOT/lib/render-agent.mjs" "$PLUGIN_ROOT" phase3-description 2>/dev/null)
     if [ -n "$AGENT_FILE" ]; then
-      DESCRIPTION=$(claude --agent "$AGENT_FILE" --print --no-session-persistence 2>/dev/null)
+      DESCRIPTION=$(claude --agent "$AGENT_FILE" --print --no-session-persistence -p "Reply with only the description sentence, nothing else. No quotes, no period." 2>/dev/null)
       rm -f "$AGENT_FILE"
       rmdir "$(dirname "$AGENT_FILE")" 2>/dev/null
 
@@ -137,6 +138,6 @@ if [ -n "$BLOG_REPO" ] && [ -d "$BLOG_REPO/_posts" ]; then
   fi
 fi
 
-' -- "$PLUGIN_ROOT" "$TRANSCRIPT_PATH" "$LOG_ID" "$LOG_DIR" > /dev/null 2>&1 &
+' -- "$PLUGIN_ROOT" "$TRANSCRIPT_PATH" "$LOG_ID" "$LOG_DIR" >> "$LOG_DIR/$LOG_ID.log" 2>&1 &
 
 exit 0
