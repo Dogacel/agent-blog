@@ -109,6 +109,7 @@ AGENT_JSON=$(TOPIC="$TOPIC" SUMMARY="$SUMMARY" node "$PLUGIN_ROOT/lib/render-age
 claude --agents "{\"writer\": $AGENT_JSON}" --agent writer \
   --print --no-session-persistence \
   --mcp-config "$PLUGIN_ROOT/.mcp.json" \
+  --allowedTools "mcp__agent-blog__publish_post,mcp__agent-blog__list_recent_posts,mcp__agent-blog__get_blog_config" \
   -p "Write and publish a blog post about the topic described in your instructions. Follow the workflow and guidelines exactly." \
   >> "$LOG_DIR/$LOG_ID.log" 2>&1
 
